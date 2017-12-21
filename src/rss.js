@@ -1,43 +1,36 @@
-// Invoke 'strict' JavaScript mode
-'use strict';
-var util = require('util'),
-  xml2js = require('xml2js'),
-  request = require('request');
+const util = require('util');
+const xml2js = require('xml2js');
+const request = require('request');
 
-
-module.exports = {
-  load: function (url, callback) {
-    var $ = this;
-    request({
-      url: url,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:45.0) Gecko/20100101 Firefox/45.0',
-        accept: 'text/html,application/xhtml+xml'
-      },
-      pool: false,
-      followRedirect: true
-
-    }, function (error, response, xml) {
-      if (!error && response.statusCode == 200) {
-        var parser = new xml2js.Parser({ trim: false, normalize: true, mergeAttrs: true });
+const RSSParser = {
+  load: function (url) {
+    return new Promise((resolve, reject) => {
+      request({
+        url: url,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:45.0) Gecko/20100101 Firefox/45.0',
+          accept: 'text/html,application/xhtml+xml'
+        },
+        pool: false,
+        followRedirect: true
+      }, (error, response, xml) => {
+        if (error || response.statusCode !== 200) {
+          return reject(new Error('Bad status code'));
+        }
+        const parser = new xml2js.Parser({ trim: false, normalize: true, mergeAttrs: true });
         parser.addListener("error", function (err) {
-          callback(err, null);
+          return reject(err)
         });
         parser.parseString(xml, function (err, result) {
-
-          callback(null, $.parser(result));
-          //console.log(JSON.stringify(result.rss.channel));
+          const parsedResult = RSSParser.parser(result);
+          return resolve(parsedResult);
         });
-
-      } else {
-        this.emit('error', new Error('Bad status code'));
-      }
+      });
     });
-
   },
   parser: function (json) {
-    var channel = json.rss.channel;
-    var rss = { items: [] };
+    const rss = { items: [] };
+    let channel = json.rss.channel;
     if (util.isArray(json.rss.channel))
       channel = json.rss.channel[0];
 
@@ -67,7 +60,7 @@ module.exports = {
         channel.item = [channel.item];
       }
       channel.item.forEach(function (val) {
-        var obj = {};
+        const obj = {};
         obj.title = !util.isNullOrUndefined(val.title) ? val.title[0] : '';
         obj.description = !util.isNullOrUndefined(val.description) ? val.description[0] : '';
         obj.url = obj.link = !util.isNullOrUndefined(val.link) ? val.link[0] : '';
@@ -89,8 +82,8 @@ module.exports = {
           if (!util.isArray(val.enclosure))
             val.enclosure = [val.enclosure];
           val.enclosure.forEach(function (enclosure) {
-            var enc = {};
-            for (var x in enclosure) {
+            const enc = {};
+            for (let x in enclosure) {
               enc[x] = enclosure[x][0];
             }
             obj.enclosures.push(enc);
@@ -103,10 +96,7 @@ module.exports = {
 
     }
     return rss;
-
-  },
-  read: function (url, callback) {
-    return this.load(url, callback);
   }
-
 };
+
+module.exports = RSSParser;
