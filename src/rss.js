@@ -30,6 +30,11 @@ const RSSParser = {
   },
   parser: function (json) {
     const rss = { items: [] };
+
+    if(!(json && json.rss)) {
+      return rss;
+    }
+
     let channel = json.rss.channel;
     if (util.isArray(json.rss.channel))
       channel = json.rss.channel[0];
@@ -44,7 +49,6 @@ const RSSParser = {
       rss.url = channel.link[0];
     }
 
-    // add rss.image via @dubyajaysmith
     if (channel.image) {
       rss.image = channel.image[0].url
     }
@@ -66,7 +70,6 @@ const RSSParser = {
         obj.url = obj.link = !util.isNullOrUndefined(val.link) ? val.link[0] : '';
 
         if (val.pubDate) {
-          //lets try basis js date parsing for now
           obj.created = Date.parse(val.pubDate[0]);
         }
         if (val['media:content']) {
